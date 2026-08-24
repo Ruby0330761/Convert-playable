@@ -13,7 +13,7 @@ node scripts\convert-applovin-to-unity.js `
 The command is fail-closed and runs three required stages:
 
 1. Mechanical AppLovin-to-Unity conversion with the upstream format converter.
-2. Unity runtime hardening for loading order, MRAID declaration/lifecycle, staged progress, first-frame loading fade, and no-argument `mraid.open()` CTA.
+2. Unity runtime hardening for loading order, MRAID declaration/lifecycle, staged progress, first-frame loading fade, no-argument `mraid.open()` CTA, and preservation of non-payload body scripts such as branding layout/runtime code.
 3. Static and lifecycle contract validation of the final single HTML.
 
 Do not run the upstream Python converter alone for Unity delivery. Its mechanical output still contains the inherited AppLovin loading and lifecycle issues.

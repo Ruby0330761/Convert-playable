@@ -420,7 +420,7 @@ function walkFinalHtmlFiles(directory) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const fullPath = path.join(directory, entry.name);
     if (entry.isDirectory()) {
-      if (entry.name !== "_work") results.push(...walkFinalHtmlFiles(fullPath));
+      if (!entry.name.startsWith("_")) results.push(...walkFinalHtmlFiles(fullPath));
     } else if (entry.isFile() && entry.name.toLowerCase().endsWith(".html")) {
       results.push(fullPath);
     }
@@ -492,19 +492,25 @@ function transformLegacyHtml(text, filePath) {
     throw new Error(`${filePath}: expected one supported gameplay payload, found ${payloadScripts.length}`);
   }
 
-  const payload = patchPayload(payloadScripts[0][2], filePath);
+  const payloadScript = payloadScripts[0];
+  const payload = patchPayload(payloadScript[2], filePath);
   const styles = Array.from(headMatch[1].matchAll(/<style\b[^>]*>[\s\S]*?<\/style>/gi), (match) => match[0]);
   if (styles.length === 0) throw new Error(`${filePath}: no gameplay style found`);
   const headMetadata = headMatch[1]
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
     .trim();
+  const bodyStart = bodyMatch.index;
+  const bodyEnd = bodyStart + bodyMatch[0].length;
+  const supportingBodyScripts = scripts
+    .filter((match) => match.index > bodyStart && match.index < bodyEnd && match.index !== payloadScript.index)
+    .map((match) => match[0]);
   const bodyWithoutScripts = bodyMatch[1].replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
   const gameplayBody = removeLegacyLoadingScreen(bodyWithoutScripts, filePath).trim();
   const doctype = (text.match(/<!doctype[^>]*>/i) || ["<!doctype html>"])[0];
   const htmlOpen = (text.match(/<html\b[^>]*>/i) || ["<html>"])[0];
 
-  return `${doctype}\n${htmlOpen}\n<head>\n${headMetadata}\n${LOADER_STYLE}\n<script src="mraid.js"></script>\n${RUNTIME_SCRIPT}\n</head>\n<body>\n    ${buildLoaderHtml(text)}\n    ${styles.join("\n")}\n    ${gameplayBody}\n    <script id="unity-playable-module" type="text/plain" data-unity-delayed-module>${payload}</script>\n    <script>window.__unityRuntime.payloadAvailable();</script>\n</body>\n</html>\n`;
+  return `${doctype}\n${htmlOpen}\n<head>\n${headMetadata}\n${LOADER_STYLE}\n<script src="mraid.js"></script>\n${RUNTIME_SCRIPT}\n</head>\n<body>\n    ${buildLoaderHtml(text)}\n    ${styles.join("\n")}\n    ${gameplayBody}\n    ${supportingBodyScripts.join("\n")}\n    <script id="unity-playable-module" type="text/plain" data-unity-delayed-module>${payload}</script>\n    <script>window.__unityRuntime.payloadAvailable();</script>\n</body>\n</html>\n`;
 }
 
 function validateHardenedHtml(text, filePath) {

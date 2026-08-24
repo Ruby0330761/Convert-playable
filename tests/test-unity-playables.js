@@ -13,17 +13,49 @@ const {
 } = require("../scripts/harden-unity-playables.js");
 
 const ROOT = path.resolve(__dirname, "..");
-const UNITY_ROOT = path.join(ROOT, "unity");
+const UNITY_ROOT = path.resolve(process.env.UNITY_ROOT || path.join(ROOT, "unity"));
+const APPLOVIN_ROOT = path.join(ROOT, "applovin");
+
+function walkHtmlFiles(directory) {
+  const results = [];
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) results.push(...walkHtmlFiles(fullPath));
+    else if (entry.isFile() && entry.name.toLowerCase().endsWith(".html")) results.push(fullPath);
+  }
+  return results;
+}
+
+function brandingRuntime(html) {
+  const match = html.match(/<script id="branding-runtime">[\s\S]*?<\/script>/i);
+  return match ? match[0].replace(/\r\n/g, "\n") : "";
+}
 
 function staticAudit() {
   const files = walkFinalHtmlFiles(UNITY_ROOT);
-  assert.equal(files.length, 10, "all ten final Unity HTML files must be audited");
+  const sourceFiles = walkHtmlFiles(APPLOVIN_ROOT);
+  assert.equal(files.length, sourceFiles.length, "every AppLovin source must have one final Unity HTML");
   for (const filePath of files) {
     const html = fs.readFileSync(filePath, "utf8");
+    const [platform] = path.relative(UNITY_ROOT, filePath).split(path.sep);
+    const sourceName = path.basename(filePath).replace("_unity_", "_applovin_");
+    const sourcePath = path.join(APPLOVIN_ROOT, platform, sourceName);
+    const sourceHtml = fs.readFileSync(sourcePath, "utf8");
+    const sourceHasBrandingRuntime = sourceHtml.includes('<script id="branding-runtime">');
     validateHardenedHtml(html, filePath);
     assert.match(html, /https:\/\/play\.google\.com\/store\/apps\/details\?id=gridplus\.busjam\.carpuzzle/);
     assert.match(html, /https:\/\/apps\.apple\.com\/app\/id6746743297/);
     assert.equal((html.match(/<script src="mraid\.js"><\/script>/g) || []).length, 1);
+    assert.equal(
+      (html.match(/<script id="branding-runtime">/g) || []).length,
+      sourceHasBrandingRuntime ? 1 : 0,
+      "branding runtime presence must match the AppLovin source"
+    );
+    if (sourceHasBrandingRuntime) {
+      assert.match(html, /const CONFIG = \{/);
+      assert.match(html, /const fitText =/);
+      assert.equal(brandingRuntime(html), brandingRuntime(sourceHtml), "branding runtime must remain byte-equivalent apart from line endings");
+    }
     assert.equal((html.match(/(?:src|href)=["']https?:\/\//gi) || []).length, 0, "no remote asset tags");
     const report = fs.readFileSync(path.join(path.dirname(filePath), "conversion-report.md"), "utf8");
     assert.match(report, /unity-runtime-hardening-v2/);
@@ -183,4 +215,4 @@ function localFallbackAudit() {
 staticAudit();
 runtimeLifecycleAudit();
 localFallbackAudit();
-console.log("PASS: ten Unity outputs and MRAID lifecycle runtime validated");
+console.log("PASS: all Unity outputs, branding runtime, and MRAID lifecycle validated");

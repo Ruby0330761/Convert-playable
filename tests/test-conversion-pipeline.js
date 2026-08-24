@@ -11,8 +11,13 @@ const { validateHardenedHtml } = require("../scripts/harden-unity-playables.js")
 
 const ROOT = path.resolve(__dirname, "..");
 const PIPELINE = path.join(ROOT, "scripts", "convert-applovin-to-unity.js");
-const INPUT = path.join(ROOT, "applovin", "Bus Fever - Car Jam Escape Playable_applovin_Heart.html");
+const INPUT = path.join(ROOT, "applovin", "IOS", "Bus Fever - Car Jam Escape Playable_applovin_IOS.html");
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "playable-unity-pipeline-"));
+
+function brandingRuntime(html) {
+  const match = html.match(/<script id="branding-runtime">[\s\S]*?<\/script>/i);
+  return match ? match[0].replace(/\r\n/g, "\n") : "";
+}
 
 function writeScript(name, source) {
   const filePath = path.join(tempRoot, name);
@@ -74,9 +79,15 @@ try {
   const htmlPath = path.join(successDir, "index.html");
   const reportPath = path.join(successDir, "conversion-report.md");
   const html = fs.readFileSync(htmlPath, "utf8");
+  const sourceHtml = fs.readFileSync(INPUT, "utf8");
   const report = fs.readFileSync(reportPath, "utf8");
   validateHardenedHtml(html, htmlPath);
   assert.ok(html.indexOf('id="loading-screen"') < html.indexOf('<script id="unity-playable-module"'));
+  assert.match(html, /<script id="branding-runtime">/);
+  assert.match(html, /const CONFIG = \{/);
+  assert.match(html, /const fitText =/);
+  assert.equal(brandingRuntime(html), brandingRuntime(sourceHtml));
+  assert.ok(html.indexOf('<script id="branding-runtime">') < html.indexOf('<script id="unity-playable-module"'));
   assert.equal((html.match(/window\.mraid\.open\(\)/g) || []).length, 1);
   assert.match(report, /unity-runtime-hardening-v2/);
   assert.doesNotMatch(report, /patch startup manually/i);
