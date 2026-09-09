@@ -459,8 +459,18 @@ function patchPayload(payload, filePath) {
     throw new Error(`${filePath}: unsupported ready.finally loader hook`);
   }
   const ownerStart = readyIndex - ownerMatch[1].length;
+  const owner = ownerMatch[1];
+  const readyHook = payload.slice(ownerStart, readyEnd + readyEndMarker.length);
+  const entryBannerCall = `${owner}.showEntryBanner?.()`;
+  const entryBannerCount = readyHook.split(entryBannerCall).length - 1;
+  if (entryBannerCount > 1) {
+    throw new Error(`${filePath}: expected at most one entry-banner ready hook`);
+  }
+  const readyExpression = entryBannerCount === 1
+    ? `${owner}.ready.then(()=>{${entryBannerCall}})`
+    : `${owner}.ready`;
   payload = payload.slice(0, ownerStart)
-    + `window.__unityPlayableReady=${ownerMatch[1]}.ready`
+    + `window.__unityPlayableReady=${readyExpression}`
     + payload.slice(readyEnd + readyEndMarker.length);
 
   let ctaCount = 0;
@@ -517,6 +527,8 @@ function validateHardenedHtml(text, filePath) {
   const bodyIndex = text.indexOf("<body>");
   const loaderIndex = text.indexOf('id="loading-screen"');
   const payloadIndex = text.indexOf('<script id="unity-playable-module"');
+  const entryBannerCalls = (text.match(/\.showEntryBanner\?\.\(\)/g) || []).length;
+  const entryBannerReadyHook = /window\.__unityPlayableReady=([A-Za-z_$][\w$]*)\.ready\.then\(\(\)=>\{\1\.showEntryBanner\?\.\(\)\}\)/.test(text);
   const checks = [
     [text.includes(RUNTIME_MARKER), "runtime marker missing"],
     [text.includes('<script src="mraid.js"></script>'), "mraid.js reference missing"],
@@ -525,6 +537,7 @@ function validateHardenedHtml(text, filePath) {
     [payloadIndex > loaderIndex, "payload must follow loader"],
     [!text.includes(".ready?.finally("), "legacy ready.finally remains"],
     [text.includes("ready.then(onModuleReady, showError)"), "ready.then success/error handling missing"],
+    [entryBannerCalls === 0 || (entryBannerCalls === 1 && entryBannerReadyHook), "entry banner ready hook was not preserved"],
     [(text.match(/window\.mraid\.open\(\)/g) || []).length === 1, "expected one no-argument CTA"],
     [!(/window\.mraid\.open\([^)]{1,}\)/.test(text)), "parameterized MRAID CTA remains"],
     [text.includes('bridge.addEventListener("viewableChange", handleViewableChange)'), "persistent viewable listener missing"],
@@ -549,7 +562,10 @@ function updateReport(htmlPath, htmlText, checkOnly) {
     .replace(/- Restored the store URL argument in the CTA call: `window\.mraid\.open\(t\)`\./g,
       "- Unity CTA uses the required no-argument call: `window.mraid.open()`.")
     .replace(/^- Unity target should start content after MRAID viewableChange=true; patch startup manually\.\r?\n/gm, "");
-  const compliance = `${REPORT_MARKER}\n## Unity Runtime Hardening (integrated)\n\n- Explicit MRAID declaration: \`<script src="mraid.js"></script>\`\n- CTA bridge: one click-only, no-argument \`mraid.open()\` call (per project requirement)\n- Startup: waits for MRAID ready and persistent \`viewableChange=true\`, then two painted animation frames\n- Background lifecycle: pauses/resumes animation frames, WebAudio, timers, and transient input\n- Loading: DOM precedes payload; staged progress; fade only after ready success and first rendered frame\n- Failure behavior: loading UI remains visible as an error screen\n- Package size: ${Buffer.byteLength(htmlText, "utf8").toLocaleString("en-US")} bytes\n`;
+  const entryBannerLine = htmlText.includes(".showEntryBanner?.()")
+    ? "- Entry banner: preserved on the scene-ready promise before Unity loading completes\n"
+    : "";
+  const compliance = `${REPORT_MARKER}\n## Unity Runtime Hardening (integrated)\n\n- Explicit MRAID declaration: \`<script src="mraid.js"></script>\`\n- CTA bridge: one click-only, no-argument \`mraid.open()\` call (per project requirement)\n- Startup: waits for MRAID ready and persistent \`viewableChange=true\`, then two painted animation frames\n${entryBannerLine}- Background lifecycle: pauses/resumes animation frames, WebAudio, timers, and transient input\n- Loading: DOM precedes payload; staged progress; fade only after ready success and first rendered frame\n- Failure behavior: loading UI remains visible as an error screen\n- Package size: ${Buffer.byteLength(htmlText, "utf8").toLocaleString("en-US")} bytes\n`;
   const next = current.includes(REPORT_MARKER)
     ? current.slice(0, current.indexOf(REPORT_MARKER)).trimEnd() + "\n\n" + compliance
     : current.trimEnd() + "\n\n" + compliance;
@@ -612,6 +628,7 @@ if (require.main === module) {
 module.exports = {
   RUNTIME_MARKER,
   hardenDirectory,
+  patchPayload,
   walkFinalHtmlFiles,
   transformLegacyHtml,
   validateHardenedHtml

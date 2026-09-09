@@ -7,7 +7,10 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
-const { validateHardenedHtml } = require("../scripts/harden-unity-playables.js");
+const {
+  patchPayload,
+  validateHardenedHtml
+} = require("../scripts/harden-unity-playables.js");
 
 const ROOT = path.resolve(__dirname, "..");
 const PIPELINE = path.join(ROOT, "scripts", "convert-applovin-to-unity.js");
@@ -72,6 +75,20 @@ fs.writeFileSync(path.join(outputDir, "conversion-report.md"), "# Fake incompati
 `);
 
 try {
+  const entryBannerPayload = [
+    "const f={ready:Promise.resolve()};",
+    'f.ready?.finally(()=>{u(1),Pc?.classList.add("is-hidden"),f.showEntryBanner?.(),window.setTimeout(()=>Pc?.remove(),360)});',
+    "window.mraid.open(t);"
+  ].join("");
+  const patchedEntryBannerPayload = patchPayload(entryBannerPayload, "entry-banner-fixture.html");
+  assert.match(
+    patchedEntryBannerPayload,
+    /window\.__unityPlayableReady=f\.ready\.then\(\(\)=>\{f\.showEntryBanner\?\.\(\)\}\)/
+  );
+  assert.equal((patchedEntryBannerPayload.match(/\.showEntryBanner\?\.\(\)/g) || []).length, 1);
+  assert.doesNotMatch(patchedEntryBannerPayload, /\.ready\?\.finally\(/);
+  assert.equal((patchedEntryBannerPayload.match(/window\.mraid\.open\(\)/g) || []).length, 1);
+
   const successDir = path.join(tempRoot, "success-output");
   const success = runPipeline(successDir, successfulConverter);
   assert.equal(success.status, 0, success.stderr || success.stdout);

@@ -1,5 +1,23 @@
 # Findings & Decisions
 
+## 2026-08-28 Android Google end-card compliance
+- The current AppLovin end card uses a fading `Game Over`/`You Win!` title, an image Logo, and a custom `Play Now` CTA; Google conversion previously changed only the click bridge and package wrapper.
+- Android Google delivery now injects a persistent complete product-name text node and the supplied official Google Play badge into a temporary source copy before mechanical conversion.
+- The supplied badge is 1000x287 PNG, 44,455 bytes, SHA-256 `514C197405407D3B9C43B9D2ED40CD197AE76706290F851E93A46B0810C9B441`; it is embedded unchanged as a data URI.
+- Persistent branding is hidden while the result overlay is visible to prevent duplicate product names and Logos.
+- Portrait keeps the existing result Logo. Landscape hides it because the portrait-authored Logo scales too large and overlaps the required product name and badge.
+- Only Android receives this compliance patch. iOS remains unchanged until an App Store badge requirement and asset are confirmed.
+- Legacy packages without the current `#game-over-overlay`, `#game-over-logo`, and `#cta-button` structure fail closed and must be rebuilt from the current source.
+
+## 2026-08-28 Google conversion integration
+- The upstream converter already supports mechanical AppLovin-to-Google conversion, but the repository previously had no integrated Google entrypoint or batch orchestration.
+- Google delivery uses a ZIP with root `index.html`, `ExitApi.exit()`, exactly one Google `exitapi.js` reference, and `ad.orientation` or `ad.size` metadata.
+- The integrated output mirrors the existing platform split: `google/Android/<google-name>/<google-name>.zip` and `google/IOS/<google-name>/<google-name>.zip`.
+- Batch conversion processes all inputs, writes `batch-conversion-report.md`, and exits nonzero when any item fails while preserving successful packages for inspection.
+- Current AppLovin inputs have one direct `mraid.open()` each and no remote resource tags, so the mechanical CTA replacement is compatible with the present template.
+- The upstream external-reference scanner emits very large Base64 false positives. The Google wrapper removes only probable inline-data warning lines after its stricter resource-attribute validation passes.
+- Real Android and iOS Beach smoke packages were 1,878,386 and 1,848,866 bytes, below Google's 5 MB limit; final platform upload validation is still required.
+
 ## 2026-08-03 pipeline integration
 - The repository currently contains the Unity hardening postprocessor and tests, but no local AppLovin-to-Unity conversion entrypoint.
 - The upstream conversion skill still describes Unity runtime patching as a manual post-report step, so future conversions can bypass the required fixes.
@@ -124,3 +142,24 @@
 
 ## Visual/Browser Findings
 - 暂无。
+
+## Single color packages collision fix - 2026-09-08
+
+- Rebuilt only the base `SingleBlue`, `SingleLightBlue`, and `SingleYellow` packages for AppLovin Android/iOS, Unity Android/iOS, and Google iOS.
+- Removed the stale ordinary-vehicle `conservativeSweep` branch from the six AppLovin sources before conversion. Unity and Google outputs were regenerated through the integrated pipelines, so all 15 target packages now share the corrected collision behavior.
+- Backup of the 15 replaced package files: `backups/before-collision-fix-20260908/`.
+
+## Mintegral conversion - 2026-09-09
+
+- The bundled conversion skill already supports `mintegral` mechanically, but it only warns about lifecycle hooks and does not remove AppLovin's MRAID-only CTA guard.
+- The integrated Node entrypoint adapts the generated package after mechanical conversion, using guarded global Mintegral callbacks so local previews do not fail when the platform bridge is absent.
+- Mintegral/PlayTurbo validation requires the ZIP basename, root directory, and main HTML basename to agree. The integrated output therefore contains exactly `mintegral/mintegral.html`, with no `type="module"` or `modulepreload` markers; the source's inline assets remain embedded. Platform-dependent size and lifecycle behavior still need Mintegral's official preview/validator.
+- The AppLovin bundle places its module script in `<head>` and depends on module scripts' implicit defer timing. Mintegral classic-script adaptation must retain `defer`; otherwise initialization runs before `#game-canvas`/loading DOM creation and the screen stays at `0%`.
+- Inline classic scripts do not reliably defer top-level DOM lookups even with a `defer` attribute. The reliable Mintegral adaptation is to move the entire gameplay script to the end of `<body>` and gate `RM(zM)` on `DOMContentLoaded`; this was verified in Chromium with `window.__busLoop=true` and a live canvas.
+- The official Mintegral tester's runtime does not provide `structuredClone`; a small JSON-compatible shim is required before the gameplay bundle executes. Lifecycle detection also requires the documented guarded expressions and globally exposed `function gameStart()` / `function gameClose()` methods, not only internal callback lookup names.
+- The official Mintegral CTA form is `window.install && window.install();`. The converter now canonicalizes MRAID, direct `window.install()`, and bare `install()` calls to that guarded expression, while preserving an existing guard. This prevents local previews without the platform bridge from throwing and avoids the invalid unguarded CTA form.
+- Fixed6 output was generated at `mintegral/Bus Fever - Car Jam Escape Playable_mintegral_fixed6/mintegral.zip` (1,902,224 bytes; one entry `mintegral/mintegral.html`). Static checks report one guarded CTA and zero unguarded calls, with no module/modulepreload syntax. A local HTTP preview loaded the page and canvas without runtime errors; platform preview validation remains required.
+- Mintegral requires a visible result card before any store CTA. The source already contains `#game-over-overlay`, Logo, and `#cta-button`; the converter now routes the successful-operation threshold and `shouldOpenStore()` paths into that overlay with an empty title, preserving the overlay/CTA/gameEnd behavior without showing a misleading mid-game `Game Over` message. Actual loss paths remain unchanged.
+- Fixed8 output was generated at `mintegral/Bus Fever - Car Jam Escape Playable_mintegral_fixed8/mintegral.zip` (1,902,227 bytes; one entry `mintegral/mintegral.html`). Static checks report one guarded CTA, zero unguarded calls, zero direct gate-to-store calls, and two gate-to-end-card paths.
+- The mid-game Mintegral card previously exposed the overlay mask before its delayed `is-cta-ready` animation, creating a black-only interval when the title was empty. The gate now adds `is-title-fading` and `is-cta-ready` synchronously after opening the overlay, leaving only the existing short opacity transition.
+- Fixed9 static verification confirms two synchronous mid-game ready transitions, zero direct gate-to-store calls, one guarded CTA, and no forbidden module syntax; package size is `1,902,232` bytes.

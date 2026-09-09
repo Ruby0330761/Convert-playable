@@ -1,5 +1,33 @@
 # Task Plan: AppLovin playable 转 Unity Ads playable
 
+## Session 2026-08-28: Android Google compliant end card
+
+### Goal
+Add the complete product name and official Google Play badge to Android Google result pages, then deliver one real Shape sample.
+
+### Implementation and delivery
+- [x] Add the supplied official Google Play badge asset.
+- [x] Patch only temporary Android Google source copies; preserve AppLovin and Unity inputs.
+- [x] Add complete product-name text, badge CTA, branding suppression, and responsive portrait/landscape layout.
+- [x] Extend fail-closed Android compliance validation and tests.
+- [x] Randomly select and convert one Android Shape package.
+- [x] Verify the real ZIP, conversion report, portrait screenshot, and landscape screenshot.
+- **Status:** complete
+
+## Session 2026-08-28: Add AppLovin-to-Google batch conversion
+
+### Goal
+Add an integrated Google Ads ZIP target while preserving the current Unity workflow and Android/IOS naming split.
+
+### Implementation
+- [x] Add a single-file and directory-batch Google conversion entrypoint.
+- [x] Preserve Android/IOS directories and replace `_applovin_` with `_google_` in output names.
+- [x] Validate Google ZIP structure, CTA, metadata, external assets, size, and file count.
+- [x] Add per-package reports and an overall batch summary with nonzero partial-failure status.
+- [x] Add regression coverage and document the workflow.
+- [x] Run real Android/iOS smoke conversions and existing Unity regressions.
+- **Status:** complete
+
 ## Goal
 
 ## Session 2026-08-03: Integrate hardening into AppLovin-to-Unity conversion
@@ -181,6 +209,15 @@ Complete
 |----------|-----------|
 | 以单 HTML 形式输出 Unity 版本 | Unity 与 AppLovin 均适合单 HTML，能避免资源路径和打包问题 |
 | 先运行技能转换脚本，再针对报告手工修补 | 保留玩法代码，最小化平台包装层变更 |
+
+## Mintegral conversion milestone - 2026-09-09
+
+- [x] Add integrated AppLovin -> Mintegral entrypoint
+- [x] Adapt CTA and lifecycle callbacks
+- [x] Generate and inspect a real Mintegral ZIP from the current AppLovin package
+- [x] Add regression coverage and document the command
+- [ ] Upload to Mintegral preview/validator for platform-specific confirmation
+- [x] Match Mintegral ZIP root and main HTML names; remove forbidden module syntax
 
 ## Errors Encountered
 | Error | Attempt | Resolution |

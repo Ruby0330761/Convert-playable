@@ -1,5 +1,38 @@
 # Progress Log
 
+## Session: 2026-08-28 (Android Google compliant end card)
+
+### Compliance integration
+- **Status:** complete
+- Added the supplied 1000x287 official Google Play badge as `assets/google/google-play-badge.png`.
+- Android Google conversion now patches a temporary source copy with the complete `Bus Fever - Car Jam Escape` product name and embedded badge while leaving AppLovin inputs unchanged.
+- The Google end card hides persistent branding, preserves the existing portrait result Logo, and uses a separate landscape layout that hides the oversized Logo.
+- Android validation now fails missing/legacy end-card templates, missing product text, custom CTA labels, non-embedded badge images, and missing branding-suppression runtime.
+
+### Sample delivery and QA
+- **Status:** complete
+- Randomly selected `Bus Fever - Car Jam Escape Playable_applovin_Android_Duck_shape_summer.html` from the Android Shape inputs.
+- Generated `Bus Fever - Car Jam Escape Playable_google_Android_Duck_shape_summer.zip` at 1,802,991 bytes with one root `index.html`.
+- Saved portrait and landscape screenshots beside the ZIP; both show complete product text and an undistorted Google Play badge without overlap.
+- Existing Google and Unity regression suites remain green; Google Ads upload validation remains external.
+
+## Session: 2026-08-28 (AppLovin to Google batch conversion)
+
+### Google pipeline integration
+- **Status:** complete
+- Added an independent AppLovin-to-Google entrypoint without changing the Unity pipeline.
+- Added Android/IOS discovery, source-derived `_google_` naming, ZIP publishing, platform filtering, per-package reports, and a batch summary.
+- Added fail-closed validation for root `index.html`, ExitApi, Google metadata, external assets, ZIP paths, 5 MB size, and 512-file limits.
+- Compacted upstream Base64 external-reference false positives after integrated resource validation.
+
+### Verification
+- **Status:** complete
+- Google pipeline tests pass for batch conversion, naming, platform filtering, validation, and partial-failure reporting.
+- Existing Unity output and integrated pipeline regression suites remain green.
+- Real Android and iOS Beach samples converted successfully; ZIP sizes were 1,878,386 and 1,848,866 bytes.
+- Real conversion reports contain the integrated validation marker and were reduced to about 2 KB.
+- Google Ads preview/backend upload validation remains required.
+
 ## Session: 2026-08-03 (pipeline integration)
 
 ### Phase 26: Conversion entrypoint audit
@@ -312,3 +345,51 @@
 | What's the goal? | 生成可上传验证的 Unity Ads 单 HTML playable |
 | What have I learned? | 见 `findings.md` |
 | What have I done? | 已完成转换、Unity 门控修补、静态/语法/逻辑验证与报告更新 |
+
+## 2026-09-08 - Single color package collision refresh
+
+- Updated the three base colors only: `SingleBlue`, `SingleLightBlue`, and `SingleYellow`.
+- Delivered AppLovin Android/iOS (6 HTML), Unity Android/iOS (6 hardened `index.html` packages), and Google iOS (3 ZIP) outputs. Google Android and all `JP/summer/winter` variants were left unchanged.
+- All target Unity and Google conversion commands completed successfully; Google ZIPs contain root `index.html`, `index.js`, and `style.css` with no stale `conservativeSweep` code.
+
+## 2026-09-09 - AppLovin to Mintegral integrated conversion
+
+- Added `scripts/convert-applovin-to-mintegral.js` as the integrated Mintegral entrypoint.
+- The pipeline reuses the upstream converter, replaces the MRAID-only CTA guard with `install()`, removes forbidden module syntax, injects guarded `gameReady`, `gameStart`, `gameEnd`, `gameClose`, and `gameRetry` callbacks, and rebuilds a validator-shaped `mintegral.zip` containing only `mintegral/mintegral.html`.
+- Tested with `D:/Project/BusLoopPlayable_2.0/artifacts/applovin/index.html`: the ZIP remains below the 5 MB limit with one file, `install()` is detected, and Mintegral-specific regression tests pass (`5/5`).
+- Remaining report warnings are the source App Store/Google Play URLs and the SVG XHTML namespace; Mintegral preview/upload validation remains required.
+
+## 2026-09-09 - Mintegral loading-screen startup fix
+
+- Fixed the Mintegral package remaining at `0%`: converting the head `type="module"` tag to a classic script had removed the module script's implicit defer behavior, so initialization ran before the gameplay DOM existed.
+- Classic Mintegral scripts now receive `defer` while retaining the required no-module syntax; the package was regenerated under `mintegral/Bus Fever - Car Jam Escape Playable_mintegral_fixed/` because the prior ZIP was locked by Bandizip.
+- Verification: Mintegral regression tests `5/5`, package structure checks, and static module/lifecycle/CTA checks pass; browser preview connection was unavailable because the in-app browser could not reach the local Windows server.
+
+## 2026-09-09 - Mintegral DOM bootstrap correction
+
+- Corrected the remaining `0%` startup failure: inline classic scripts ignore `defer` for top-level DOM lookups, so the full gameplay script is now moved to the final `</body>` position and its bootstrap remains DOMContentLoaded-gated.
+- Generated `mintegral/Bus Fever - Car Jam Escape Playable_mintegral_fixed4/mintegral.zip` with the same one-file Mintegral structure.
+- Verification: Mintegral tests `7/7`, Chromium file-preview startup (`window.__busLoop=true`, canvas `1280x720`, loading layer removed), ZIP structure, and classic-script syntax all pass. Remaining console warnings match the original AppLovin preview.
+
+## 2026-09-09 - Mintegral official lifecycle/runtime compatibility
+
+- Added a JSON-compatible `structuredClone` shim for Mintegral runtimes that omit the API; this removes the initialization `ReferenceError` reported by the official tester.
+- Updated the bridge to use the documented `window.gameReady && window.gameReady()`, `window.gameEnd && window.gameEnd()`, and `window.gameRetry && window.gameRetry()` calls, and exposes fallback `function gameStart()` / `function gameClose()` methods without overwriting platform callbacks.
+- Generated `mintegral/Bus Fever - Car Jam Escape Playable_mintegral_fixed5/mintegral.zip` at `1,902,219` bytes. Chromium simulation with `structuredClone` disabled reaches `window.__busLoop=true`, fires `gameReady/gameStart`, and fires `gameEnd` on the result overlay; Mintegral tests pass `7/7`.
+
+## 2026-09-09 - Mintegral CTA guard correction
+
+- Updated `scripts/convert-applovin-to-mintegral.js` so every MRAID, direct, or bare CTA call is normalized to `window.install && window.install();` without double-wrapping existing guards.
+- Added regression coverage for guarded/direct/bare CTA forms; Mintegral tests now pass `8/8`.
+- Generated `mintegral/Bus Fever - Car Jam Escape Playable_mintegral_fixed6/mintegral.zip` at `1,902,224` bytes. ZIP contains one file at `mintegral/mintegral.html`; static checks show one guarded CTA and no unguarded install call, module syntax, or modulepreload. Local HTTP preview loads the canvas and removes the loading layer without runtime errors.
+
+## 2026-09-09 - Mintegral mid-game end card
+
+- Mintegral's successful-operation threshold no longer calls the store bridge directly. Both threshold paths now invoke the existing result overlay with an empty title, so the branded Logo and CTA are shown without a misleading `Game Over` message; genuine loss still uses its original failure title.
+- Added regression coverage for both threshold-to-overlay paths; Mintegral tests pass `9/9`.
+- Generated `mintegral/Bus Fever - Car Jam Escape Playable_mintegral_fixed8/mintegral.zip` at `1,902,227` bytes. ZIP contains only `mintegral/mintegral.html`, with one guarded CTA, no unguarded install calls, and no module/modulepreload syntax.
+
+## 2026-09-09 - Mintegral mid-game card timing
+
+- Removed the black-only interval from the threshold-triggered Mintegral card by promoting `is-title-fading` and `is-cta-ready` in the same turn as the existing overlay logic. The Logo and CTA now begin their normal short opacity transition immediately; real loss timing remains unchanged.
+- Added regression assertions for synchronous ready-class promotion. Generated `mintegral/Bus Fever - Car Jam Escape Playable_mintegral_fixed9/mintegral.zip` at `1,902,232` bytes; ZIP contains only `mintegral/mintegral.html`.
