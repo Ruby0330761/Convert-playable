@@ -36,6 +36,35 @@ node tests\test-unity-playables.js
 node tests\test-conversion-pipeline.js
 ```
 
+## AppLovin to Meta
+
+Use the integrated Meta entrypoint for a strict ZIP package:
+
+```powershell
+node scripts\\convert-applovin-to-meta.js `
+  --input "applovin\\Android\\Example_applovin_Android.html" `
+  --output-dir "meta\\Android\\Example_meta_Android" `
+  --orientation portrait
+```
+
+The pipeline replaces the AppLovin/MRAID CTA with `FbPlayableAd.onCTAClick()`, rejects JavaScript redirects, writes a root `index.html`, and fails closed when Meta's limits are exceeded: `index.html < 2MB`, ZIP `<= 5MB`, and no more than 100 files. Validate the resulting ZIP in Meta's official Playable Preview (`https://developers.facebook.com/tools/playable-preview/`) and in the actual Ads Manager upload flow. Meta playable ads require the App Installs objective; local conversion does not confirm audio or backend approval.
+
+Meta export automatically distributes the first inline executable script into root `index.js` and the first inline stylesheet into root `style.css`; both are loaded by root `index.html`. Additional scripts/styles use `runtime-N.js` / `style-N.css` to preserve their original order and behavior. These three required root files must be nonempty, referenced in HTML, and present at the ZIP root; missing/misnamed files fail validation. Script order, `type="module"`, JSON metadata, and embedded asset bytes are preserved. All references are relative inside the ZIP; no CDN or runtime download is introduced. This avoids the 2 MB entry HTML limit without lossy image/audio compression or changing synchronous data-URL loaders. Optional one-byte placeholder audio uses one sample of silence instead of throwing a native decode error. Validation scans the external scripts too, not just the HTML. The file limit is strictly fewer than 100.
+
+Convert several organized source folders into Meta-only Android/iOS delivery folders:
+
+```powershell
+node scripts/batch-meta-folders.js --input "D:/source/group-a" --input "D:/source/group-b" --output-dir "D:/delivery/meta"
+```
+
+This scans only each source folder's AppLovin HTML files, preserves the group/device layout, uses `FB` for new-style channel names and `meta` for legacy platform names, and writes a manifest/report. Source folders remain untouched. The command fails if any conversion fails.
+
+Run the Meta regression suite after changing this pipeline:
+
+```powershell
+node tests\\test-meta-conversion-pipeline.js
+```
+
 ## AppLovin to Google Ads
 
 Convert all Android and iOS AppLovin HTML files in one batch:
